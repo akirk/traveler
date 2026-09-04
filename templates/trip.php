@@ -78,6 +78,14 @@ $segment_type_labels = [
     'activity' => __( 'Activity', 'traveler' ),
     'other'    => __( 'Other', 'traveler' ),
 ];
+$timeline_type_codes = [
+    'flight'   => 'FL',
+    'lodging'  => 'ST',
+    'train'    => 'TR',
+    'car'      => 'DR',
+    'activity' => 'DO',
+    'other'    => 'IT',
+];
 $lodging_coverage = LodgingCoverage::analyze( $trip_data, $segments );
 $timeline_segments = LodgingCoverage::timeline_segments( $segments );
 if ( $is_readonly_timeline ) {
@@ -216,6 +224,1215 @@ if ( ! $is_static_download ) {
     <?php if ( ! $is_static_download ) : ?>
         <?php wp_app_head(); ?>
     <?php endif; ?>
+    <style>
+        :root {
+            color-scheme: light dark;
+            <?php if ( $is_static_download ) : ?>
+                --wp-app-color-background: #f8fafc;
+                --wp-app-color-surface: #fff;
+                --wp-app-color-text: #17202a;
+                --wp-app-color-muted: #5f6b7a;
+                --wp-app-color-border: #d8dee8;
+                --wp-app-color-link: #0b6bcb;
+            <?php endif; ?>
+        }
+        <?php if ( $is_static_download ) : ?>
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --wp-app-color-background: #111418;
+                    --wp-app-color-surface: #191e24;
+                    --wp-app-color-text: #f1f5f9;
+                    --wp-app-color-muted: #a7b0bd;
+                    --wp-app-color-border: #303844;
+                    --wp-app-color-link: #7ab7ff;
+                }
+            }
+        <?php endif; ?>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            line-height: 1.5;
+            background: var(--wp-app-color-background);
+            color: var(--wp-app-color-text);
+        }
+        main { max-width: 1180px; margin: 0 auto; padding: 32px 18px 56px; }
+        a { color: var(--wp-app-color-link); }
+        h1, h2, h3, p { margin-top: 0; }
+        h1 { font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.04; margin-bottom: 12px; letter-spacing: 0; }
+        h2 { font-size: 1.15rem; margin-bottom: 14px; }
+        h3 { font-size: 1rem; margin-bottom: 5px; }
+        .screen-reader-text {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            word-wrap: normal;
+            border: 0;
+        }
+        label { display: block; font-weight: 650; margin-bottom: 5px; }
+        input, select, textarea {
+            box-sizing: border-box;
+            width: 100%;
+            border: 1px solid var(--wp-app-color-border);
+            border-radius: 6px;
+            padding: 9px 10px;
+            background: var(--wp-app-color-background);
+            color: var(--wp-app-color-text);
+            font: inherit;
+        }
+        textarea { min-height: 92px; resize: vertical; }
+        button {
+            appearance: none;
+            min-height: 38px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            background: var(--wp-app-color-link);
+            color: #fff;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .bottom-nav { margin-top: 24px; }
+        .trip-title-header {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .trip-title-header h1 {
+            margin: 0;
+            overflow-wrap: anywhere;
+        }
+        .trip-title-edit-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            min-height: 38px;
+            padding: 0;
+            border-radius: 6px;
+            border: 0;
+            background: transparent;
+            color: var(--wp-app-color-link);
+        }
+        .trip-title-edit-button span[aria-hidden="true"] {
+            display: inline-block;
+            transform: scaleX(-1);
+        }
+        .trip-title-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 10px;
+        }
+        .trip-title-form[hidden] { display: none; }
+        .trip-title-form label { margin: 0; }
+        .trip-title-form input { font-size: 1.35rem; font-weight: 750; }
+        .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; color: var(--wp-app-color-muted); margin-bottom: 24px; }
+        .trip-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+        .trip-actions .ghost-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 38px;
+            box-sizing: border-box;
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+        }
+        .share-link {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .share-option {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: end;
+            padding: 10px 0;
+            border-top: 1px solid var(--wp-app-color-border);
+        }
+        .share-option:first-child { border-top: 0; padding-top: 0; }
+        .share-link label { margin: 0; }
+        .share-link input { color: var(--wp-app-color-muted); }
+        .share-link .ghost-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 38px;
+            box-sizing: border-box;
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: var(--wp-app-color-text);
+            font: inherit;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .share-link .ghost-button[hidden] { display: none; }
+        .share-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .share-actions .copied {
+            border-color: rgba(15, 107, 66, 0.42);
+            color: #0f6b42;
+        }
+        .panel {
+            background: var(--wp-app-color-surface);
+            border: 1px solid var(--wp-app-color-border);
+            border-radius: 8px;
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+        .notice {
+            margin-bottom: 18px;
+            border-radius: 6px;
+            padding: 12px 14px;
+            border: 1px solid rgba(15, 107, 66, 0.32);
+            background: rgba(15, 107, 66, 0.08);
+        }
+        .notice.error { border-color: rgba(138, 75, 8, 0.28); background: rgba(138, 75, 8, 0.08); }
+        .offline-status[hidden] { display: none; }
+        .offline-status {
+            margin-bottom: 18px;
+            border-radius: 6px;
+            padding: 10px 12px;
+            border: 1px solid rgba(11, 107, 203, 0.28);
+            background: rgba(11, 107, 203, 0.08);
+            color: var(--wp-app-color-text);
+        }
+        .offline-status.error { border-color: rgba(138, 75, 8, 0.28); background: rgba(138, 75, 8, 0.08); }
+        .offline-panel {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 1px solid var(--wp-app-color-border);
+            color: var(--wp-app-color-muted);
+        }
+        .offline-panel summary {
+            cursor: pointer;
+        }
+        .offline-panel summary h2 {
+            display: inline;
+        }
+        .offline-panel h2 {
+            margin-bottom: 10px;
+            color: var(--wp-app-color-text);
+        }
+        .offline-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .offline-grid div {
+            border: 1px solid var(--wp-app-color-border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: var(--wp-app-color-surface);
+        }
+        .offline-grid dt {
+            margin: 0 0 3px;
+            font-size: 0.82rem;
+        }
+        .offline-grid dd {
+            margin: 0;
+            color: var(--wp-app-color-text);
+            font-weight: 750;
+            overflow-wrap: anywhere;
+        }
+        .demo-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 18px; }
+        .demo-controls label { min-width: 190px; margin: 0; }
+        .ghost-button {
+            background: transparent;
+            color: var(--wp-app-color-text);
+            border: 1px solid var(--wp-app-color-border);
+            border-color: var(--wp-app-color-border);
+        }
+        .timeline-panel,
+        .now-next-panel {
+            --ledger-ink: #101820;
+            --ledger-paper: #f7f8f5;
+            --ledger-muted: #52606b;
+            --ledger-line: #ccd2d5;
+            --ledger-signal: #e4532f;
+            --ledger-current: #eaf0eb;
+        }
+        .timeline-panel {
+            display: grid;
+            grid-template-columns: 210px minmax(0, 1fr);
+            padding: 0;
+            border-radius: 0;
+            background: var(--ledger-paper);
+            color: var(--ledger-ink);
+        }
+        .timeline-day-rail {
+            position: sticky;
+            top: 18px;
+            align-self: start;
+            min-height: calc(100vh - 36px);
+            box-sizing: border-box;
+            padding: 26px 18px;
+            background: var(--ledger-ink);
+            color: var(--ledger-paper);
+        }
+        .timeline-day-rail-title {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 1.35rem;
+            font-weight: 800;
+            line-height: 1.05;
+            letter-spacing: -0.025em;
+        }
+        .timeline-day-rail-summary {
+            margin: 0 0 24px;
+            color: var(--ledger-line);
+            font-size: 0.78rem;
+        }
+        .timeline-day-links {
+            display: grid;
+            gap: 3px;
+        }
+        .timeline-day-link {
+            display: grid;
+            grid-template-columns: 32px minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+            min-height: 48px;
+            box-sizing: border-box;
+            padding: 7px 8px;
+            border-radius: 6px;
+            color: inherit;
+            text-decoration: none;
+        }
+        .timeline-day-link:hover,
+        .timeline-day-link:focus,
+        .timeline-day-link:focus-visible,
+        .timeline-day-link.is-active {
+            background: rgba(247, 248, 245, 0.12);
+            color: inherit;
+            text-decoration: none;
+        }
+        .timeline-day-link.is-current,
+        .timeline-day-link[aria-current="date"] {
+            background: var(--ledger-signal);
+            color: #101820;
+        }
+        .timeline-day-link:focus-visible {
+            outline: 2px solid var(--ledger-paper);
+            outline-offset: 2px;
+        }
+        .timeline-day-link strong {
+            font-size: 1.15rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .timeline-day-link span,
+        .timeline-day-link small {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .timeline-day-link span { font-size: 0.77rem; }
+        .timeline-day-link small { font-size: 0.7rem; opacity: 0.72; }
+        .timeline-day-link.is-current small,
+        .timeline-day-link[aria-current="date"] small { opacity: 1; }
+        .timeline-ledger-content {
+            min-width: 0;
+            padding: 26px 30px 44px;
+        }
+        .timeline { position: relative; display: grid; gap: 0; }
+        .timeline-day {
+            position: relative;
+            margin-bottom: 44px;
+            scroll-margin-top: 22px;
+        }
+        .timeline-day:last-child { margin-bottom: 0; }
+        .timeline-day-content[hidden] { display: none; }
+        .timeline-day-empty {
+            margin: 0;
+            padding: 26px 4px;
+            border-bottom: 1px dashed var(--ledger-line);
+            color: var(--ledger-muted);
+            font-size: 0.82rem;
+        }
+        .time-marker {
+            display: none;
+            position: absolute;
+            z-index: 3;
+            left: 0;
+            right: 0;
+            width: auto;
+            height: 0;
+            border-top: 1px solid var(--ledger-signal);
+            color: var(--ledger-signal);
+            pointer-events: none;
+        }
+        .time-marker::before {
+            content: "";
+            position: absolute;
+            left: 65px;
+            top: -5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--ledger-signal);
+            box-shadow: 0 0 0 3px var(--ledger-paper);
+        }
+        .time-marker span {
+            position: absolute;
+            left: 58px;
+            top: -13px;
+            transform: translateX(-100%);
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: var(--ledger-signal);
+            color: var(--ledger-ink);
+            font-size: 0.76rem;
+            font-weight: 750;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+        .day-heading {
+            margin: 0;
+            color: var(--ledger-muted);
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
+        .day-heading-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 16px;
+            align-items: end;
+            justify-content: space-between;
+            padding-bottom: 11px;
+            border-bottom: 3px solid var(--ledger-ink);
+        }
+        .day-heading-copy {
+            display: grid;
+            grid-template-columns: 76px minmax(0, 1fr);
+            gap: 14px;
+            align-items: end;
+        }
+        .day-number {
+            font-size: 2.65rem;
+            font-weight: 850;
+            line-height: 0.8;
+            letter-spacing: -0.035em;
+            font-variant-numeric: tabular-nums;
+        }
+        .day-heading-meta { min-width: 0; }
+        .day-item-count {
+            display: block;
+            margin-top: 2px;
+            color: var(--ledger-muted);
+            font-size: 0.75rem;
+        }
+        .day-heading-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        .day-journal-form {
+            margin: 0;
+        }
+        .day-journal-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: flex-end;
+        }
+        .day-journal-button {
+            min-height: 30px;
+            padding: 4px 9px;
+            border-color: var(--ledger-line);
+            border-radius: 4px;
+            background: transparent;
+            color: var(--ledger-ink);
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+        .day-collapse-button {
+            min-height: 36px;
+            padding: 4px 2px;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            color: var(--ledger-ink);
+            font-size: 0.76rem;
+            font-weight: 750;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        .day-collapse-button:focus-visible {
+            outline: 2px solid var(--ledger-signal);
+            outline-offset: 2px;
+        }
+        .timeline-item-wrap {
+            margin: 0;
+        }
+        .timeline-item {
+            display: grid;
+            grid-template-columns: 68px 42px minmax(190px, 1fr) auto;
+            gap: 14px;
+            align-items: center;
+            min-height: 76px;
+            box-sizing: border-box;
+            padding: 12px 10px;
+            border: 0;
+            border-bottom: 1px solid var(--ledger-line);
+            border-radius: 0;
+            background: transparent;
+            color: inherit;
+        }
+        .timeline-item.past { color: #67737a; }
+        .timeline-item.current {
+            background: var(--ledger-current);
+            color: var(--ledger-ink);
+            outline: 0;
+        }
+        .timeline-item.current .timeline-symbol { background: var(--ledger-signal); color: #101820; }
+        .timeline-symbol {
+            display: inline-grid;
+            place-items: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 4px;
+            background: var(--ledger-ink);
+            color: var(--ledger-paper);
+            font-size: 0.67rem;
+            font-weight: 850;
+            letter-spacing: 0.04em;
+        }
+        .timeline-event { min-width: 0; }
+        .timeline-state {
+            min-width: 76px;
+            box-sizing: border-box;
+            padding: 5px 8px;
+            border: 1px solid var(--ledger-line);
+            border-radius: 4px;
+            color: var(--ledger-muted);
+            font-size: 0.69rem;
+            font-weight: 800;
+            letter-spacing: 0.045em;
+            text-align: center;
+            text-transform: uppercase;
+        }
+        .timeline-item.current .timeline-state {
+            border-color: var(--ledger-signal);
+            color: #942b14;
+        }
+        .timeline-state.generated { border-style: dashed; }
+        .timeline-title-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .timeline-title-link {
+            color: inherit;
+            text-decoration: none;
+        }
+        .timeline-title-button {
+            appearance: none;
+            min-height: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            font-weight: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+        .timeline-title-link:hover,
+        .timeline-title-link:focus,
+        .timeline-title-link:focus-visible,
+        .timeline-title-button:hover,
+        .timeline-title-button:focus,
+        .timeline-title-button:focus-visible {
+            color: var(--wp-app-color-link);
+            text-decoration: none;
+        }
+        .timeline-title-link:focus-visible,
+        .timeline-title-button:focus-visible {
+            outline: 2px solid var(--wp-app-color-link);
+            outline-offset: 2px;
+        }
+        .timeline-url-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            color: var(--wp-app-color-link);
+            font-weight: 750;
+            text-decoration: none;
+        }
+        .timeline-url-link:hover,
+        .timeline-url-link:focus,
+        .timeline-url-link:focus-visible {
+            background: var(--wp-app-color-surface);
+            text-decoration: none;
+        }
+        .timeline-url-link:focus-visible {
+            outline: 2px solid var(--wp-app-color-link);
+            outline-offset: 2px;
+        }
+        .time {
+            color: var(--ledger-muted);
+            font-size: 0.82rem;
+            font-weight: 750;
+            font-variant-numeric: tabular-nums;
+        }
+        .type { color: var(--wp-app-color-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0; }
+        .timeline-meta {
+            min-width: 0;
+        }
+        .title { font-weight: 750; overflow-wrap: anywhere; }
+        .detail { color: var(--ledger-muted); overflow-wrap: anywhere; }
+        .detail a {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: inherit;
+            text-decoration: none;
+        }
+        .detail a:hover,
+        .detail a:focus,
+        .detail a:focus-visible {
+            color: var(--wp-app-color-link);
+            text-decoration: none;
+        }
+        .detail a:focus-visible {
+            outline: 2px solid var(--wp-app-color-link);
+            outline-offset: 2px;
+        }
+        .timeline-item .detail,
+        .summary-grid .detail {
+            font-size: 0.88rem;
+            line-height: 1.42;
+        }
+        .timeline-item .timeline-note {
+            font-size: 0.8rem;
+        }
+        .attachment-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--wp-app-color-border);
+        }
+        .attachment-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            max-width: 100%;
+            min-height: 30px;
+            box-sizing: border-box;
+            padding: 4px 8px;
+            border: 1px solid var(--wp-app-color-border);
+            border-radius: 6px;
+            color: var(--wp-app-color-text);
+            font-size: 0.82rem;
+            font-weight: 700;
+            line-height: 1.25;
+            text-decoration: none;
+        }
+        .attachment-download:hover,
+        .attachment-download:focus,
+        .attachment-download:focus-visible {
+            color: var(--wp-app-color-link);
+            border-color: var(--wp-app-color-link);
+            text-decoration: none;
+        }
+        .attachment-download:focus-visible {
+            outline: 2px solid var(--wp-app-color-link);
+            outline-offset: 2px;
+        }
+        .attachment-download-icon {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1em;
+            flex: 0 0 1em;
+        }
+        .attachment-download span:nth-child(2) {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .attachment-offline-indicator {
+            flex: 0 0 auto;
+            color: #237a3b;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .url-preview {
+            display: grid;
+            grid-template-columns: 72px minmax(0, 1fr);
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--wp-app-color-border);
+            color: inherit;
+            text-decoration: none;
+        }
+        .url-preview.no-image {
+            grid-template-columns: minmax(0, 1fr);
+        }
+        .url-preview:hover,
+        .url-preview:focus,
+        .url-preview:focus-visible,
+        .url-preview:hover *,
+        .url-preview:focus *,
+        .url-preview:focus-visible * {
+            text-decoration: none;
+        }
+        .url-preview:focus-visible {
+            outline: 2px solid var(--wp-app-color-link);
+            outline-offset: 2px;
+        }
+        .url-preview-image {
+            width: 72px;
+            aspect-ratio: 16 / 10;
+            object-fit: cover;
+            border-radius: 6px;
+            background: var(--wp-app-color-surface);
+        }
+        .url-preview-text {
+            min-width: 0;
+        }
+        .url-preview-title {
+            font-size: 0.92rem;
+            font-weight: 750;
+            overflow-wrap: anywhere;
+        }
+        .url-preview-meta,
+        .url-preview-description {
+            color: var(--wp-app-color-muted);
+            font-size: 0.82rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+        .timeline-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+        .timeline-header h2 {
+            margin: 0;
+            font-size: 1.35rem;
+            letter-spacing: -0.02em;
+        }
+        .timeline-header-copy p {
+            margin: 3px 0 0;
+            color: var(--ledger-muted);
+            font-size: 0.8rem;
+        }
+        .timeline-header-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-left: auto;
+        }
+        .now-next-panel {
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            overflow: hidden;
+            margin-bottom: 18px;
+        }
+        .mini-timeline {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        }
+        .mini-step {
+            display: grid;
+            align-content: center;
+            min-height: 118px;
+            box-sizing: border-box;
+            padding: 24px 28px;
+            border: 0;
+            color: inherit;
+            text-decoration: none;
+        }
+        .mini-step.current {
+            background: var(--ledger-ink);
+            color: var(--ledger-paper);
+        }
+        .mini-step.next {
+            background: var(--ledger-signal);
+            color: #101820;
+        }
+        .mini-step:hover,
+        .mini-step:focus,
+        .mini-step:focus-visible,
+        .mini-step:hover *,
+        .mini-step:focus *,
+        .mini-step:focus-visible * {
+            text-decoration: none;
+        }
+        .mini-step:hover { text-decoration: underline; text-underline-offset: 3px; }
+        .mini-step:focus-visible {
+            position: relative;
+            z-index: 1;
+            outline: 3px solid #fff;
+            outline-offset: -6px;
+        }
+        .mini-label {
+            color: var(--ledger-signal);
+            font-size: 0.7rem;
+            font-weight: 850;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .mini-step.next .mini-label { color: #101820; }
+        .mini-step.next .mini-location,
+        .mini-step.next .mini-countdown {
+            color: #101820;
+            opacity: 1;
+        }
+        .mini-title {
+            margin-top: 5px;
+            font-size: 1.05rem;
+            font-weight: 800;
+            overflow-wrap: anywhere;
+        }
+        .mini-location {
+            color: inherit;
+            opacity: 0.72;
+            overflow-wrap: anywhere;
+            font-size: 0.8rem;
+            line-height: 1.42;
+        }
+        .mini-countdown {
+            color: inherit;
+            opacity: 0.72;
+            font-size: 0.82rem;
+            font-weight: 650;
+            margin-top: 2px;
+        }
+        .mini-step[hidden] { display: none; }
+        .timeline-now-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.48;
+        }
+        .timeline-edit-panel {
+            border: 1px solid var(--ledger-line);
+            border-top: 0;
+            border-radius: 0;
+            background: #fff;
+            margin: 0;
+        }
+        .timeline-edit-panel[hidden] {
+            display: none;
+        }
+        .timeline-edit-panel .edit-form {
+            padding: 14px 12px 12px;
+        }
+        .timeline-edit-panel .delete-segment-form {
+            display: none;
+        }
+        .form-secondary-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .delete-item-link {
+            appearance: none;
+            background: transparent;
+            border: 0;
+            color: #9f1f1f;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 650;
+            padding: 0;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .delete-item-link:hover,
+        .delete-item-link:focus-visible {
+            color: #7f1717;
+        }
+        .timeline-edit-panel .form-actions {
+            justify-content: space-between;
+            align-items: center;
+        }
+        .attachment-note {
+            color: var(--wp-app-color-muted);
+            font-size: 0.88rem;
+            margin: 0;
+            padding: 0 12px 12px;
+        }
+        .lodging-checker {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            min-height: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            color: var(--wp-app-color-muted);
+            font: inherit;
+            font-weight: inherit;
+            line-height: inherit;
+            text-decoration: none;
+        }
+        .lodging-checker-icon {
+            color: #9a6700;
+            font-weight: 800;
+        }
+        .lodging-checker.covered .lodging-checker-icon {
+            color: #238636;
+        }
+        button.lodging-checker {
+            cursor: pointer;
+        }
+        .lodging-checker-box {
+            display: grid;
+            gap: 10px;
+            margin: -4px 0 14px;
+            padding: 12px;
+            border: 1px solid rgba(198, 139, 0, 0.32);
+            border-radius: 8px;
+            background: rgba(198, 139, 0, 0.08);
+        }
+        .lodging-checker-box.covered {
+            border-color: rgba(35, 134, 54, 0.28);
+            background: rgba(35, 134, 54, 0.08);
+        }
+        .lodging-checker-box[hidden] {
+            display: none;
+        }
+        .lodging-checker-box-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            color: var(--wp-app-color-muted);
+            font-size: 0.88rem;
+        }
+        .lodging-checker-box-header strong {
+            color: var(--wp-app-color-text);
+        }
+        .lodging-checker-night {
+            display: grid;
+            grid-template-columns: minmax(150px, 0.8fr) minmax(160px, 1fr);
+            gap: 10px;
+            align-items: center;
+            padding: 8px 0;
+            border-top: 1px solid rgba(198, 139, 0, 0.22);
+        }
+        .lodging-checker-night label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+        }
+        .lodging-checker-night input[type="checkbox"] {
+            width: auto;
+        }
+        .lodging-checker-night input[type="text"] {
+            width: 100%;
+        }
+        .lodging-checker-night-covered {
+            grid-template-columns: minmax(150px, 0.8fr) minmax(180px, 1fr) minmax(160px, 1fr);
+        }
+        .lodging-checker-night-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+        }
+        .lodging-checker-night-status .lodging-checker-icon {
+            color: #238636;
+        }
+        .lodging-checker-brief {
+            color: var(--wp-app-color-muted);
+            font-size: 0.88rem;
+            overflow-wrap: anywhere;
+        }
+        .lodging-checker-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+        .timeline-now-button,
+        .add-item-button {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 32px;
+            min-height: 32px;
+            padding: 5px 9px;
+            font-size: 0.88rem;
+            line-height: 1.2;
+        }
+        .timeline-panel .add-item-button {
+            background: var(--ledger-ink);
+            color: var(--ledger-paper);
+        }
+        .timeline-panel .timeline-now-button {
+            border-color: var(--ledger-line);
+            color: var(--ledger-ink);
+        }
+        details.timeline-details,
+        details.item {
+            border: 1px solid var(--wp-app-color-border);
+            border-radius: 8px;
+            background: var(--wp-app-color-background);
+            margin-bottom: 10px;
+        }
+        .unscheduled-link {
+            display: block;
+            color: inherit;
+            text-decoration: none;
+            padding: 13px 14px;
+        }
+        .unscheduled-link:hover { border-color: var(--wp-app-color-link); }
+        details.timeline-details[open],
+        details.item[open] { background: var(--wp-app-color-surface); }
+        details.timeline-details summary,
+        details.item summary {
+            cursor: pointer;
+            list-style: none;
+            padding: 13px 14px;
+        }
+        details.timeline-details summary::-webkit-details-marker,
+        details.item summary::-webkit-details-marker { display: none; }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 74px minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+        }
+        .edit-form {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            padding: 0 14px 14px;
+            border-top: 1px solid var(--wp-app-color-border);
+        }
+        .add-item-form {
+            margin-bottom: 18px;
+            padding-top: 14px;
+            border: 1px solid var(--wp-app-color-border);
+            border-radius: 8px;
+            background: var(--wp-app-color-surface);
+        }
+        .add-item-panel {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .add-item-panel[hidden] { display: none; }
+        .add-item-panel details {
+            border: 1px solid var(--wp-app-color-border);
+            border-radius: 8px;
+            background: var(--wp-app-color-surface);
+        }
+        .add-item-panel summary {
+            cursor: pointer;
+            font-weight: 700;
+            padding: 12px 14px;
+        }
+        .add-item-panel details .trip-import-form {
+            margin-top: 0;
+            padding: 0 14px 14px;
+        }
+        .field-wide { grid-column: 1 / -1; }
+        .date-time-group {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+        .item-actions {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+        }
+        .route-zone,
+        .travel-journaling-zone,
+        .settings-zone,
+        .sharing-zone,
+        .danger-zone {
+            margin-top: 28px;
+            border-top: 1px solid var(--wp-app-color-border);
+            padding-top: 18px;
+            color: var(--wp-app-color-muted);
+        }
+        .route-zone h2,
+        .travel-journaling-zone h2,
+        .settings-zone h2,
+        .sharing-zone h2,
+        .danger-zone h2 {
+            color: var(--wp-app-color-text);
+        }
+        .route-zone details summary,
+        .travel-journaling-zone details summary,
+        .settings-zone details summary,
+        .sharing-zone details summary,
+        .danger-zone details summary {
+            cursor: pointer;
+            color: var(--wp-app-color-text);
+            font-weight: 700;
+        }
+        .route-zone details summary h2,
+        .travel-journaling-zone details summary h2,
+        .settings-zone details summary h2,
+        .sharing-zone details summary h2,
+        .danger-zone details summary h2 {
+            display: inline;
+            margin: 0;
+            font-size: 1.15rem;
+        }
+        .settings-form {
+            display: grid;
+            gap: 14px;
+            margin-top: 14px;
+        }
+        .settings-help {
+            margin: 12px 0 0;
+            color: var(--wp-app-color-muted);
+            font-size: 0.92rem;
+            line-height: 1.5;
+        }
+        .setting-option {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            margin: 0;
+            font-weight: 400;
+        }
+        .setting-option input {
+            width: auto;
+            margin-top: 4px;
+        }
+        .setting-option strong {
+            display: block;
+            color: var(--wp-app-color-text);
+        }
+        .setting-option span span {
+            color: var(--wp-app-color-muted);
+            font-size: 0.88rem;
+        }
+        .settings-form-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+        .trip-import-form {
+            display: grid;
+            gap: 12px;
+            margin-top: 14px;
+        }
+        .delete-button {
+            background: transparent;
+            color: #9f1f1f;
+            border-color: rgba(159, 31, 31, 0.36);
+        }
+        .empty { color: var(--wp-app-color-muted); }
+        @media (max-width: 820px) {
+            .timeline-panel {
+                grid-template-columns: minmax(0, 1fr);
+            }
+            .timeline-day-rail {
+                position: sticky;
+                z-index: 5;
+                top: 0;
+                min-height: 0;
+                padding: 14px 16px;
+                border-bottom: 1px solid rgba(247, 248, 245, 0.28);
+            }
+            .timeline-day-rail-title,
+            .timeline-day-rail-summary { display: none; }
+            .timeline-day-links {
+                display: flex;
+                gap: 5px;
+                overflow-x: auto;
+                padding: 2px;
+                scrollbar-width: thin;
+            }
+            .timeline-day-link {
+                flex: 0 0 auto;
+                grid-template-columns: 28px auto;
+                min-height: 44px;
+                padding: 5px 9px;
+            }
+            .timeline-day-link small { display: none; }
+            .timeline-ledger-content { padding: 22px 20px 38px; }
+            .timeline-day { scroll-margin-top: 88px; }
+            #wpadminbar ~ main .timeline-day-rail { top: 32px; }
+            #wpadminbar ~ main .timeline-day { scroll-margin-top: 120px; }
+        }
+        @media (max-width: 680px) {
+            main { padding-inline: 12px; }
+            .timeline-panel { border: 0; }
+            .timeline-item {
+                grid-template-columns: 52px 38px minmax(0, 1fr);
+                gap: 10px;
+                padding: 12px 4px;
+            }
+            .timeline-state {
+                grid-column: 3;
+                justify-self: start;
+                min-width: 0;
+            }
+            .timeline-symbol { width: 34px; height: 34px; }
+            .summary-grid, .edit-form, .share-option { grid-template-columns: 1fr; }
+            .url-preview { grid-template-columns: 1fr; }
+            .url-preview-image { width: 100%; }
+            .trip-title-header { align-items: flex-start; }
+            .trip-title-form { grid-template-columns: 1fr; }
+            .date-time-group { grid-template-columns: 1fr; }
+            .mini-timeline { grid-template-columns: 1fr; }
+            .mini-step { min-height: 104px; padding: 20px; }
+            .timeline-header { flex-wrap: wrap; }
+            .timeline-header-actions {
+                margin-left: 0;
+                justify-content: flex-start;
+            }
+            .time-marker span {
+                left: 47px;
+            }
+            .time-marker::before { left: 54px; }
+            .day-heading-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+            .day-heading-copy { grid-template-columns: 54px minmax(0, 1fr); gap: 10px; }
+            .day-number { font-size: 2.15rem; }
+            .day-heading-controls { justify-content: flex-end; }
+            .lodging-checker-night,
+            .lodging-checker-night-covered { grid-template-columns: 1fr; }
+            .lodging-checker-actions button { width: 100%; }
+            .demo-controls label { min-width: 100%; }
+            .offline-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 782px) {
+            #wpadminbar ~ main .timeline-day-rail { top: 46px; }
+            #wpadminbar ~ main .timeline-day { scroll-margin-top: 134px; }
+        }
+    </style>
 </head>
 <body>
     <?php if ( ! $is_static_download ) : ?>
@@ -362,8 +1579,42 @@ if ( ! $is_static_download ) {
             <?php endif; ?>
 
             <section class="panel timeline-panel" aria-labelledby="timeline-heading" data-ai-assistant-important>
+                <aside class="timeline-day-rail" aria-label="<?php esc_attr_e( 'Timeline days', 'traveler' ); ?>">
+                    <strong class="timeline-day-rail-title"><?php esc_html_e( 'Trip timeline', 'traveler' ); ?></strong>
+                    <p class="timeline-day-rail-summary">
+                        <?php
+                        printf(
+                            /* translators: 1: formatted itinerary day count, 2: formatted trip item count. */
+                            esc_html__( '%1$s · %2$s', 'traveler' ),
+                            esc_html( sprintf( _n( '%d day', '%d days', count( $segments_by_day ), 'traveler' ), count( $segments_by_day ) ) ),
+                            esc_html( sprintf( _n( '%d item', '%d items', count( $segments ), 'traveler' ), count( $segments ) ) )
+                        );
+                        ?>
+                    </p>
+                    <?php if ( ! empty( $segments_by_day ) ) : ?>
+                        <nav class="timeline-day-links" aria-label="<?php esc_attr_e( 'Jump to day', 'traveler' ); ?>">
+                            <?php foreach ( array_keys( $segments_by_day ) as $day_index => $day_link_date ) : ?>
+                                <?php $day_link_timestamp = strtotime( $day_link_date . ' 12:00:00' ); ?>
+                                <a
+                                    class="timeline-day-link<?php echo 0 === $day_index ? ' is-active' : ''; ?><?php echo $day_link_date === $today ? ' is-current' : ''; ?>"
+                                    href="#timeline-day-<?php echo esc_attr( $day_link_date ); ?>"
+                                    data-timeline-day-link="<?php echo esc_attr( $day_link_date ); ?>"
+                                    <?php echo $day_link_date === $today ? 'aria-current="date"' : ''; ?>
+                                >
+                                    <strong><?php echo esc_html( $day_link_timestamp ? date_i18n( 'd', $day_link_timestamp ) : $day_link_date ); ?></strong>
+                                    <span><?php echo esc_html( $day_link_timestamp ? date_i18n( 'D', $day_link_timestamp ) : '' ); ?></span>
+                                    <small><?php echo esc_html( $day_link_timestamp ? date_i18n( 'M', $day_link_timestamp ) : '' ); ?></small>
+                                </a>
+                            <?php endforeach; ?>
+                        </nav>
+                    <?php endif; ?>
+                </aside>
+                <div class="timeline-ledger-content">
                 <div class="timeline-header">
-                    <h2 id="timeline-heading"><?php esc_html_e( 'Timeline', 'traveler' ); ?></h2>
+                    <div class="timeline-header-copy">
+                        <h2 id="timeline-heading"><?php esc_html_e( 'Timeline', 'traveler' ); ?></h2>
+                        <p><?php esc_html_e( 'Times, places, and travel details in one working view.', 'traveler' ); ?></p>
+                    </div>
                     <div class="timeline-header-actions">
                         <?php if ( '' !== $trip_direct_map_url ) : ?>
                             <a class="timeline-map-link" href="<?php echo esc_url( $trip_direct_map_url ); ?>" title="<?php esc_attr_e( 'Route map on OpenStreetMap', 'traveler' ); ?>">
@@ -639,7 +1890,7 @@ if ( ! $is_static_download ) {
                 <?php if ( empty( $segments_by_day ) ) : ?>
                     <p class="empty"><?php esc_html_e( 'No timeline items were found.', 'traveler' ); ?></p>
                 <?php else : ?>
-                    <div class="timeline" id="timeline" data-demo-target="<?php echo esc_attr( $demo_control_id ); ?>"<?php echo $is_readonly_timeline ? ' data-readonly-timeline="1"' : ''; ?><?php echo $is_trip_active ? ' data-current-time="1" data-current-time-value="' . esc_attr( $timeline_current_time_value ) . '" data-current-time-captured="' . esc_attr( $timeline_current_time_captured ) . '"' : ''; ?>>
+                    <div class="timeline" id="timeline" data-demo-target="<?php echo esc_attr( $demo_control_id ); ?>" data-state-current="<?php esc_attr_e( 'Current', 'traveler' ); ?>" data-state-past="<?php esc_attr_e( 'Passed', 'traveler' ); ?>" data-state-planned="<?php esc_attr_e( 'Planned', 'traveler' ); ?>" data-state-generated="<?php esc_attr_e( 'Generated', 'traveler' ); ?>"<?php echo $is_readonly_timeline ? ' data-readonly-timeline="1"' : ''; ?><?php echo $is_trip_active ? ' data-current-time="1" data-current-time-value="' . esc_attr( $timeline_current_time_value ) . '" data-current-time-captured="' . esc_attr( $timeline_current_time_captured ) . '"' : ''; ?>>
                         <?php if ( $show_timeline_time_marker ) : ?>
                             <div class="time-marker"><span class="time-marker-label"></span></div>
                         <?php endif; ?>
@@ -647,12 +1898,24 @@ if ( ! $is_static_download ) {
                             <?php
                             $journal_entry = $journal_entries_by_day[ $day ] ?? [];
                             $journal_exists = ! empty( $journal_entry );
+                            $day_timestamp = strtotime( $day . ' 12:00:00' );
+                            $day_heading_id = 'timeline-day-heading-' . $day;
+                            $day_content_id = 'timeline-day-content-' . $day;
                             ?>
-                            <section class="timeline-day<?php echo empty( $day_segments ) ? ' empty' : ''; ?>" data-date="<?php echo esc_attr( $day ); ?>">
+                            <section class="timeline-day<?php echo empty( $day_segments ) ? ' empty' : ''; ?>" id="timeline-day-<?php echo esc_attr( $day ); ?>" data-date="<?php echo esc_attr( $day ); ?>" aria-labelledby="<?php echo esc_attr( $day_heading_id ); ?>">
                                 <div class="day-heading-row">
-                                    <h3 class="day-heading"><?php echo esc_html( $traveler->format_date_label( $day ) ); ?></h3>
-                                    <?php if ( ! $is_readonly_timeline && $journal_enabled ) : ?>
-                                        <div class="day-journal-actions">
+                                    <div class="day-heading-copy">
+                                        <span class="day-number" aria-hidden="true"><?php echo esc_html( $day_timestamp ? date_i18n( 'd', $day_timestamp ) : $day ); ?></span>
+                                        <div class="day-heading-meta">
+                                            <h3 class="day-heading" id="<?php echo esc_attr( $day_heading_id ); ?>"><?php echo esc_html( $traveler->format_date_label( $day ) ); ?></h3>
+                                            <span class="day-item-count">
+                                                <?php echo esc_html( sprintf( _n( '%d timeline item', '%d timeline items', count( $day_segments ), 'traveler' ), count( $day_segments ) ) ); ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="day-heading-controls">
+                                        <?php if ( ! $is_readonly_timeline && $journal_enabled ) : ?>
+                                            <div class="day-journal-actions">
                                             <form class="day-journal-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                                                 <input type="hidden" name="action" value="traveler_open_journal_entry">
                                                 <input type="hidden" name="trip_id" value="<?php echo esc_attr( (string) $trip_data['id'] ); ?>">
@@ -673,9 +1936,17 @@ if ( ! $is_static_download ) {
                                                     </button>
                                                 </form>
                                             <?php endif; ?>
-                                        </div>
-                                    <?php endif; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                        <button class="day-collapse-button" type="button" data-timeline-day-toggle aria-controls="<?php echo esc_attr( $day_content_id ); ?>" aria-expanded="true" data-expand-label="<?php esc_attr_e( 'Expand', 'traveler' ); ?>" data-collapse-label="<?php esc_attr_e( 'Collapse', 'traveler' ); ?>">
+                                            <span data-timeline-day-toggle-label><?php esc_html_e( 'Collapse', 'traveler' ); ?></span>
+                                        </button>
+                                    </div>
                                 </div>
+                                <div class="timeline-day-content" id="<?php echo esc_attr( $day_content_id ); ?>">
+                                <?php if ( empty( $day_segments ) ) : ?>
+                                    <p class="timeline-day-empty"><?php esc_html_e( 'Nothing scheduled. Add an item when the plan takes shape.', 'traveler' ); ?></p>
+                                <?php endif; ?>
                                 <?php foreach ( $day_segments as $segment ) : ?>
                                     <?php $index = (int) $segment['_index']; ?>
                                     <?php $timeline_kind = (string) ( $segment['_timeline_kind'] ?? 'start' ); ?>
@@ -691,24 +1962,30 @@ if ( ! $is_static_download ) {
                                     <?php
                                     if ( 'checkout' === $timeline_kind ) {
                                         $type_label = __( 'Check out', 'traveler' );
+                                        $timeline_type_code = 'OUT';
                                     } elseif ( 'return' === $timeline_kind ) {
                                         $type_label = __( 'Return car', 'traveler' );
+                                        $timeline_type_code = 'IN';
                                     } elseif ( 'car' === ( $segment['type'] ?? '' ) ) {
                                         $type_label = __( 'Rental car', 'traveler' );
+                                        $timeline_type_code = $timeline_type_codes['car'];
                                     } else {
                                         $type_label = $segment_type_labels[ $segment['type'] ?? 'other' ] ?? ucfirst( $segment['type'] ?: __( 'other', 'traveler' ) );
+                                        $timeline_type_code = $timeline_type_codes[ $segment['type'] ?? 'other' ] ?? $timeline_type_codes['other'];
                                     }
+                                    $initial_state = $day < $today ? __( 'Passed', 'traveler' ) : ( $is_end_timeline_entry ? __( 'Generated', 'traveler' ) : __( 'Planned', 'traveler' ) );
                                     ?>
                                     <?php $url_preview = isset( $segment['url_preview'] ) && is_array( $segment['url_preview'] ) ? $segment['url_preview'] : []; ?>
                                     <?php $attachments = $show_attachments && isset( $segment['attachments'] ) && is_array( $segment['attachments'] ) ? $segment['attachments'] : []; ?>
                                     <?php $has_url_preview = $show_url_preview && ! empty( $url_preview ) && ( ! empty( $url_preview['title'] ) || ! empty( $url_preview['description'] ) || ! empty( $url_preview['image'] ) ); ?>
                                     <div class="timeline-item-wrap" id="<?php echo esc_attr( $segment_anchor ); ?>">
-                                        <div class="timeline-item" data-inline-edit-view data-date="<?php echo esc_attr( (string) ( $segment['date'] ?? '' ) ); ?>" data-time="<?php echo esc_attr( (string) ( $segment['time'] ?? '' ) ); ?>" data-end-date="<?php echo esc_attr( (string) ( $segment['end_date'] ?? '' ) ); ?>" data-end-time="<?php echo esc_attr( (string) ( $segment['end_time'] ?? '' ) ); ?>" data-datetime="<?php echo esc_attr( $segment_datetime ); ?>">
+                                        <div class="timeline-item<?php echo $day < $today ? ' past' : ''; ?>" data-inline-edit-view data-date="<?php echo esc_attr( (string) ( $segment['date'] ?? '' ) ); ?>" data-time="<?php echo esc_attr( (string) ( $segment['time'] ?? '' ) ); ?>" data-end-date="<?php echo esc_attr( (string) ( $segment['end_date'] ?? '' ) ); ?>" data-end-time="<?php echo esc_attr( (string) ( $segment['end_time'] ?? '' ) ); ?>" data-datetime="<?php echo esc_attr( $segment_datetime ); ?>" data-generated="<?php echo $is_end_timeline_entry ? '1' : '0'; ?>">
                                             <div class="timeline-meta">
-                                                <div class="time"><?php echo esc_html( $segment['time'] ?: ' ' ); ?></div>
-                                                <div class="type"><?php echo esc_html( $type_label ); ?></div>
+                                                <time class="time" datetime="<?php echo esc_attr( $segment_datetime ); ?>"><?php echo esc_html( $segment['time'] ?: '—' ); ?></time>
                                             </div>
-                                            <div>
+                                            <span class="timeline-symbol" aria-hidden="true"><?php echo esc_html( $timeline_type_code ); ?></span>
+                                            <div class="timeline-event">
+                                                <span class="screen-reader-text"><?php echo esc_html( $type_label ); ?>: </span>
                                                 <div class="timeline-title-row title">
                                                     <?php if ( $is_readonly_timeline ) : ?>
                                                         <span<?php echo esc_attr( App::mask_attr( 'title', (string) ( $segment['id'] ?? $index ) . '-item' ) ); ?>><?php echo esc_html( $segment['title'] ?: __( 'Untitled item', 'traveler' ) ); ?></span>
@@ -795,6 +2072,7 @@ if ( ! $is_static_download ) {
                                                     </a>
                                                 <?php endif; ?>
                                             </div>
+                                            <span class="timeline-state<?php echo $is_end_timeline_entry && $day >= $today ? ' generated' : ''; ?>" data-timeline-state><?php echo esc_html( $initial_state ); ?></span>
                                         </div>
                                         <?php if ( ! $is_readonly_timeline && ! $is_end_timeline_entry ) : ?>
                                             <div class="timeline-edit-panel" id="<?php echo esc_attr( 'edit-segment-' . $index ); ?>" data-inline-edit-panel hidden>
@@ -802,10 +2080,12 @@ if ( ! $is_static_download ) {
                                         <?php endif; ?>
                                     </div>
                                 <?php endforeach; ?>
+                                </div>
                             </section>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
+                </div>
             </section>
 
             <?php if ( ! empty( $unscheduled_segments ) ) : ?>
