@@ -94,6 +94,60 @@ class App extends BaseApp {
         return dirname( __DIR__ ) . '/templates';
     }
 
+    public function get_route_param( string $key, string $default = '' ): string {
+        global $wp_app_route;
+
+        if ( isset( $wp_app_route['params'][ $key ] ) && is_scalar( $wp_app_route['params'][ $key ] ) ) {
+            return sanitize_text_field( (string) $wp_app_route['params'][ $key ] );
+        }
+
+        $value = get_query_var( $key, $default );
+
+        return is_scalar( $value ) ? sanitize_text_field( (string) $value ) : $default;
+    }
+
+    public function get_query_arg_absint( string $key, int $default = 0 ): int {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only query state used for notices and routing.
+        return isset( $_GET[ $key ] ) ? absint( $_GET[ $key ] ) : $default;
+    }
+
+    public function get_query_arg_key( string $key, string $default = '' ): string {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only query state used for notices and routing.
+        return isset( $_GET[ $key ] ) ? sanitize_key( wp_unslash( $_GET[ $key ] ) ) : $default;
+    }
+
+    public function get_query_arg_text( string $key, string $default = '' ): string {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only query state used for notices and routing.
+        return isset( $_GET[ $key ] ) ? sanitize_text_field( wp_unslash( $_GET[ $key ] ) ) : $default;
+    }
+
+    public function has_query_arg( string $key ): bool {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only query state used for notices and routing.
+        return isset( $_GET[ $key ] );
+    }
+
+    private function render_template( string $template, array $context = [] ): void {
+        if ( 1 !== preg_match( '/\A[a-z0-9_-]+\.php\z/i', $template ) ) {
+            wp_die(
+                esc_html__( 'Template not found.', 'traveler' ),
+                esc_html__( 'Template not found', 'traveler' ),
+                [ 'response' => 500 ]
+            );
+        }
+
+        $template_file = $this->get_template_dir() . '/' . $template;
+        if ( ! is_readable( $template_file ) ) {
+            wp_die(
+                esc_html__( 'Template not found.', 'traveler' ),
+                esc_html__( 'Template not found', 'traveler' ),
+                [ 'response' => 500 ]
+            );
+        }
+
+        $traveler_template_context = $context;
+        include $template_file;
+    }
+
     private function get_pwa_config(): array {
         $asset_base_url = plugins_url( 'assets/', dirname( __DIR__ ) . '/traveler.php' );
         $asset_path = (string) wp_parse_url( $asset_base_url, PHP_URL_PATH );
@@ -201,8 +255,8 @@ class App extends BaseApp {
     }
 
     public function filter_pwa_manifest( array $manifest, array $config ): array {
-        $trip_id = isset( $_GET['trip_id'] ) ? absint( $_GET['trip_id'] ) : 0;
-        $token = isset( $_GET['token'] ) ? sanitize_text_field( wp_unslash( $_GET['token'] ) ) : '';
+        $trip_id = $this->get_query_arg_absint( 'trip_id' );
+        $token = $this->get_query_arg_text( 'token' );
         $manifest['name'] = __( 'Travel Timeline', 'traveler' );
         $manifest['short_name'] = __( 'Timeline', 'traveler' );
         $manifest['start_url'] = home_url( '/' . $this->get_url_path() . '/' );
@@ -637,7 +691,9 @@ class App extends BaseApp {
         $delegating_users = get_users( [
             'fields'     => 'all',
             'exclude'    => [ $actor_user_id ],
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- User delegation is stored in user meta and filtered here to avoid scanning every user on normal imports.
             'meta_key'   => '_traveler_allow_delegated_trip_creation',
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- See meta_key note above; this is a small settings lookup for eligible delegation owners.
             'meta_value' => '1',
             'orderby'    => 'display_name',
             'order'      => 'ASC',
@@ -654,6 +710,7 @@ class App extends BaseApp {
 
     private function resolve_import_owner_id(): int {
         $actor_user_id = get_current_user_id();
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Called after traveler_import nonce verification.
         $owner_user_id = isset( $_POST['traveler_owner_user_id'] ) ? absint( $_POST['traveler_owner_user_id'] ) : $actor_user_id;
 
         if ( $owner_user_id === $actor_user_id ) {
@@ -732,12 +789,12 @@ class App extends BaseApp {
     }
 
     private function request_has_trip_share_token( int $trip_id ): bool {
-        $shared_trip_id = isset( $_GET['traveler_share'] ) ? absint( $_GET['traveler_share'] ) : 0;
+        $shared_trip_id = $this->get_query_arg_absint( 'traveler_share' );
         if ( $shared_trip_id !== $trip_id ) {
             return false;
         }
 
-        $token = isset( $_GET['traveler_token'] ) ? sanitize_text_field( wp_unslash( $_GET['traveler_token'] ) ) : '';
+        $token = $this->get_query_arg_text( 'traveler_token' );
 
         return '' !== $this->get_trip_share_mode_by_token( $trip_id, $token );
     }
@@ -1657,7 +1714,7 @@ class App extends BaseApp {
             $this->save_quick_plan_draft_submission( $draft_key, $target, $redirect, $owner_user_id );
         }
 
-        $text = isset( $_POST['itinerary_text'] ) ? (string) wp_unslash( $_POST['itinerary_text'] ) : '';
+        $text = isset( $_POST['itinerary_text'] ) ? sanitize_textarea_field( wp_unslash( $_POST['itinerary_text'] ) ) : '';
         $file_text = $this->get_uploaded_itinerary_text();
         if ( is_wp_error( $file_text ) ) {
             wp_safe_redirect( add_query_arg( 'traveler_error', rawurlencode( $file_text->get_error_code() ), $redirect ) );
@@ -1791,6 +1848,7 @@ class App extends BaseApp {
         }
 
         if ( 'existing' === $target ) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Called after traveler_import nonce verification.
             $target = isset( $_POST['quick_plan_existing_trip'] ) ? (string) absint( $_POST['quick_plan_existing_trip'] ) : '';
             if ( '' === $target || '0' === $target ) {
                 wp_safe_redirect( add_query_arg( 'traveler_error', 'quick_plan_invalid', $redirect ) );
@@ -1799,6 +1857,7 @@ class App extends BaseApp {
         }
 
         if ( 'new' === $target || '' === $target ) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Called after traveler_import nonce verification.
             $trip_title = isset( $_POST['quick_plan_trip_title'] ) ? sanitize_text_field( wp_unslash( $_POST['quick_plan_trip_title'] ) ) : '';
             $trip_id = $this->save_trip( [
                 'title'     => '' !== trim( $trip_title ) ? $trip_title : $this->get_quick_plan_trip_title( $segment ),
@@ -1859,36 +1918,34 @@ class App extends BaseApp {
     }
 
     public function maybe_render_shared_timeline(): void {
-        $trip_id = isset( $_GET['traveler_share'] ) ? absint( $_GET['traveler_share'] ) : 0;
-        $token = isset( $_GET['traveler_token'] ) ? sanitize_text_field( wp_unslash( $_GET['traveler_token'] ) ) : '';
+        $trip_id = $this->get_query_arg_absint( 'traveler_share' );
+        $token = $this->get_query_arg_text( 'traveler_token' );
 
         if ( $trip_id <= 0 || '' === $token ) {
             return;
         }
 
         if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+            // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- WordPress core cache-control constant.
             define( 'DONOTCACHEPAGE', true );
         }
 
-        global $wp_app_route;
-        $wp_app_route = [
-            'app_path' => $this->get_url_path(),
-            'pattern'  => 'share',
-            'template' => 'trip.php',
-            'params'   => [
-                'id'    => (string) $trip_id,
-                'token' => $token,
-            ],
-        ];
-
-        $traveler_shared_timeline = true;
-        include $this->get_template_dir() . '/trip.php';
+        $this->render_template(
+            'trip.php',
+            [
+                'trip_id'             => $trip_id,
+                'share_token'         => $token,
+                'is_shared_timeline'  => true,
+                'is_static_download'  => false,
+                'static_share_mode'   => '',
+            ]
+        );
         exit;
     }
 
     public function maybe_render_shared_calendar(): void {
-        $trip_id = isset( $_GET['traveler_calendar'] ) ? absint( $_GET['traveler_calendar'] ) : 0;
-        $token = isset( $_GET['traveler_token'] ) ? sanitize_text_field( wp_unslash( $_GET['traveler_token'] ) ) : '';
+        $trip_id = $this->get_query_arg_absint( 'traveler_calendar' );
+        $token = $this->get_query_arg_text( 'traveler_token' );
 
         if ( $trip_id <= 0 || '' === $token ) {
             return;
@@ -1913,6 +1970,7 @@ class App extends BaseApp {
         }
 
         if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+            // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- WordPress core cache-control constant.
             define( 'DONOTCACHEPAGE', true );
         }
 
@@ -1945,7 +2003,7 @@ class App extends BaseApp {
      * so the user can review it before importing with the usual nonce check.
      */
     public function maybe_handle_share_target(): void {
-        if ( empty( $_GET['traveler_share_target'] ) ) {
+        if ( ! $this->has_query_arg( 'traveler_share_target' ) ) {
             return;
         }
 
@@ -1966,11 +2024,13 @@ class App extends BaseApp {
         // text is only prefilled into the form the user still has to submit.
         $fields = [];
         foreach ( [ 'title', 'text', 'url' ] as $field ) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Share target prefill only; values are stored in a transient and shown in the import form.
             $fields[ $field ] = isset( $_POST[ $field ] ) ? (string) wp_unslash( $_POST[ $field ] ) : '';
         }
 
         $unsupported_file = false;
         $contents = [];
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Share target prefill only; accepted files are read as text for later user confirmation.
         foreach ( ShareTarget::normalize_files( $_FILES['files'] ?? null ) as $file ) {
             if ( ! ShareTarget::is_text_file( $file ) ) {
                 $unsupported_file = true;
@@ -2016,8 +2076,8 @@ class App extends BaseApp {
     }
 
     public function maybe_render_user_calendar(): void {
-        $user_id = isset( $_GET['traveler_trips_calendar'] ) ? absint( $_GET['traveler_trips_calendar'] ) : 0;
-        $token = isset( $_GET['traveler_token'] ) ? sanitize_text_field( wp_unslash( $_GET['traveler_token'] ) ) : '';
+        $user_id = $this->get_query_arg_absint( 'traveler_trips_calendar' );
+        $token = $this->get_query_arg_text( 'traveler_token' );
 
         if ( $user_id <= 0 || '' === $token ) {
             return;
@@ -2032,6 +2092,7 @@ class App extends BaseApp {
         }
 
         if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+            // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- WordPress core cache-control constant.
             define( 'DONOTCACHEPAGE', true );
         }
 
@@ -2138,7 +2199,9 @@ class App extends BaseApp {
             'author'         => get_current_user_id(),
             'fields'         => 'ids',
             'posts_per_page' => -1,
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Journal entries are related to trips through post meta so they remain normal WordPress posts.
             'meta_key'       => '_traveler_trip_id',
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- The matching meta value is required to load entries for a single trip.
             'meta_value'     => (string) $trip_id,
         ] );
 
@@ -2476,7 +2539,9 @@ class App extends BaseApp {
             'post_status'    => 'any',
             'fields'         => 'ids',
             'posts_per_page' => -1,
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Journal entries are related to trips through post meta so they remain normal WordPress posts.
             'meta_key'       => '_traveler_trip_id',
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- The matching meta value is required to load entries for a single trip.
             'meta_value'     => (string) $trip_id,
         ] ) );
     }
@@ -2607,6 +2672,7 @@ class App extends BaseApp {
             'author'         => get_current_user_id(),
             'fields'         => 'ids',
             'posts_per_page' => 1,
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Journal entries are related to trips through post meta and date through post meta.
             'meta_query'     => [
                 [
                     'key'   => '_traveler_trip_id',
@@ -2799,10 +2865,12 @@ class App extends BaseApp {
             return new \WP_Error( 'segment_not_found', __( 'This itinerary item could not be found.', 'traveler' ) );
         }
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Called after traveler_upload_item_attachment nonce verification.
         if ( empty( $_FILES['item_attachment'] ) || ! is_array( $_FILES['item_attachment'] ) ) {
             return new \WP_Error( 'attachment_missing', __( 'Choose a file to upload.', 'traveler' ) );
         }
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- File array is validated by WordPress media handling below.
         $files = $this->normalize_uploaded_files( $_FILES['item_attachment'] );
         if ( empty( $files ) ) {
             return new \WP_Error( 'attachment_missing', __( 'Choose a file to upload.', 'traveler' ) );
@@ -2813,6 +2881,7 @@ class App extends BaseApp {
         require_once ABSPATH . 'wp-admin/includes/media.php';
 
         $uploaded = 0;
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Preserved so media_handle_sideload() receives the original upload structure.
         $original_file = $_FILES['item_attachment'];
 
         foreach ( $files as $file ) {
@@ -2968,10 +3037,12 @@ class App extends BaseApp {
     }
 
     private function get_uploaded_itinerary_text() {
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Called after traveler_import nonce verification.
         if ( empty( $_FILES['itinerary_file'] ) || ! is_array( $_FILES['itinerary_file'] ) ) {
             return '';
         }
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- File contents are type-checked and sanitized by read_uploaded_text_file().
         return $this->read_uploaded_text_file( $_FILES['itinerary_file'] );
     }
 
@@ -3097,29 +3168,18 @@ class App extends BaseApp {
     }
 
     private function render_static_trip_html( int $trip_id, string $mode = 'fellow' ): string {
-        global $wp_app_route;
-
-        $previous_route = $wp_app_route ?? null;
-        $wp_app_route = [
-            'app_path' => $this->get_url_path(),
-            'pattern'  => 'trip/{id}',
-            'template' => 'trip.php',
-            'params'   => [
-                'id' => (string) $trip_id,
-            ],
-        ];
-
-        $traveler_static_download = true;
-        $traveler_static_share_mode = $this->normalize_share_mode( $mode );
         ob_start();
-        include $this->get_template_dir() . '/trip.php';
+        $this->render_template(
+            'trip.php',
+            [
+                'trip_id'             => $trip_id,
+                'share_token'         => '',
+                'is_shared_timeline'  => false,
+                'is_static_download'  => true,
+                'static_share_mode'   => $this->normalize_share_mode( $mode ),
+            ]
+        );
         $html = (string) ob_get_clean();
-
-        if ( null === $previous_route ) {
-            unset( $wp_app_route );
-        } else {
-            $wp_app_route = $previous_route;
-        }
 
         return $html;
     }
@@ -3948,17 +4008,20 @@ class App extends BaseApp {
     public function migrate_from_travel_app(): void {
         global $wpdb;
 
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time activation migration updates legacy plugin records in place.
         $wpdb->query( "UPDATE {$wpdb->posts} SET post_type = 'traveler_item' WHERE post_type = 'travel_app_item'" );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time activation migration updates legacy plugin records in place.
         $wpdb->query( "UPDATE {$wpdb->posts} SET post_type = 'traveler_journal' WHERE post_type = 'travel_app_journal'" );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time activation migration updates legacy taxonomy rows in place.
         $wpdb->query( "UPDATE {$wpdb->term_taxonomy} SET taxonomy = 'traveler_trip' WHERE taxonomy = 'travel_app_trip'" );
 
         foreach ( [ $wpdb->postmeta, $wpdb->termmeta, $wpdb->usermeta ] as $table ) {
             // The table names come from $wpdb, never from a request, and there is
             // nothing else to interpolate, so there is no placeholder to use here.
-            // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
             $wpdb->query( "UPDATE {$table} SET meta_key = CONCAT( '_traveler_', SUBSTRING( meta_key, 13 ) ) WHERE meta_key LIKE '\\_travel\\_app\\_%'" );
             $wpdb->query( "UPDATE {$table} SET meta_key = CONCAT( 'traveler_', SUBSTRING( meta_key, 12 ) ) WHERE meta_key LIKE 'travel\\_app\\_%'" );
-            // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
         }
 
         $cap_map = [
@@ -3977,6 +4040,7 @@ class App extends BaseApp {
             }
         }
 
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time activation migration finds users with legacy per-user capabilities.
         $user_ids = $wpdb->get_col( $wpdb->prepare(
             "SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value LIKE %s",
             $wpdb->get_blog_prefix() . 'capabilities',

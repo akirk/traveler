@@ -3,6 +3,7 @@
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Template partial variables are provided by the parent template.
 $demo_control_id = isset( $demo_control_id ) ? (string) $demo_control_id : 'traveler-demo';
 $demo_control_value = isset( $demo_control_value ) ? (string) $demo_control_value : gmdate( 'Y-m-d\TH:i' );
 $demo_control_date = substr( $demo_control_value, 0, 10 );

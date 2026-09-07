@@ -3,6 +3,7 @@
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Template variables are render-local state.
 use Traveler\App;
 
 $traveler = App::get_instance();
@@ -10,7 +11,7 @@ $allow_delegated_trip_creation = $traveler->user_allows_delegated_trip_creation(
 $delegation_capability_options = $traveler->get_delegation_capability_options();
 $delegated_trip_creation_capability = $traveler->get_delegated_trip_creation_capability( get_current_user_id() );
 $global_trip_editor_capability = $traveler->get_global_trip_editor_capability( get_current_user_id() );
-$settings_updated = isset( $_GET['settings_updated'] );
+$settings_updated = $traveler->has_query_arg( 'settings_updated' );
 ?>
 <!DOCTYPE html>
 <html <?php wp_app_language_attributes(); ?>>
