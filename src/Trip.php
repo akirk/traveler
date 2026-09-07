@@ -117,6 +117,7 @@ class Trip {
         $terms = get_terms( [
             'taxonomy'   => 'traveler_trip',
             'hide_empty' => false,
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Trip editor relationships are stored in term meta so trips remain WordPress taxonomy terms.
             'meta_query' => $meta_query,
         ] );
 

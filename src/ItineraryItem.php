@@ -275,8 +275,10 @@ class ItineraryItem {
             'post_status'    => [ 'private', 'publish', 'draft' ],
             'posts_per_page' => -1,
             'orderby'        => 'meta_value',
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Itinerary order is stored as post meta so items remain normal WordPress posts.
             'meta_key'       => '_traveler_sort',
             'order'          => 'ASC',
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query -- Items are attached to the trip taxonomy; this is the canonical WordPress relationship query.
             'tax_query'      => [
                 [
                     'taxonomy' => 'traveler_trip',

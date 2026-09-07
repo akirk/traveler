@@ -3,19 +3,19 @@
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Template variables are render-local state.
 use Traveler\App;
 use Traveler\LodgingCoverage;
 use Traveler\Parser\AiParser;
 use Traveler\Trip;
 
-global $wp_app_route;
-
 $traveler = App::get_instance();
+$traveler_template_context = isset( $traveler_template_context ) && is_array( $traveler_template_context ) ? $traveler_template_context : [];
 $demo_mode_enabled = $traveler->is_demo_mode_enabled();
-$trip_id    = isset( $wp_app_route['params']['id'] ) ? absint( $wp_app_route['params']['id'] ) : absint( get_query_var( 'id' ) );
-$share_token = isset( $wp_app_route['params']['token'] ) ? sanitize_text_field( wp_unslash( $wp_app_route['params']['token'] ) ) : '';
-$is_static_download = ! empty( $traveler_static_download );
-$is_shared_timeline = ! empty( $traveler_shared_timeline ) || '' !== $share_token;
+$trip_id    = isset( $traveler_template_context['trip_id'] ) ? absint( $traveler_template_context['trip_id'] ) : absint( $traveler->get_route_param( 'id' ) );
+$share_token = isset( $traveler_template_context['share_token'] ) ? sanitize_text_field( (string) $traveler_template_context['share_token'] ) : $traveler->get_route_param( 'token' );
+$is_static_download = ! empty( $traveler_template_context['is_static_download'] );
+$is_shared_timeline = ! empty( $traveler_template_context['is_shared_timeline'] ) || '' !== $share_token;
 $is_readonly_timeline = $is_shared_timeline || $is_static_download;
 $trip       = Trip::get( $trip_id );
 if ( ! $trip || ! current_user_can( 'read_traveler_trip', $trip_id ) ) {
@@ -25,10 +25,10 @@ if ( ! $trip || ! current_user_can( 'read_traveler_trip', $trip_id ) ) {
         [ 'response' => 404 ]
     );
 }
-$share_mode = $is_static_download ? ( isset( $traveler_static_share_mode ) ? (string) $traveler_static_share_mode : 'fellow' ) : ( $is_shared_timeline ? $traveler->get_trip_share_mode_by_token( $trip_id, $share_token ) : '' );
+$share_mode = $is_static_download ? ( isset( $traveler_template_context['static_share_mode'] ) ? (string) $traveler_template_context['static_share_mode'] : 'fellow' ) : ( $is_shared_timeline ? $traveler->get_trip_share_mode_by_token( $trip_id, $share_token ) : '' );
 $show_private_share_details = ( ! $is_shared_timeline && ! $is_static_download ) || 'fellow' === $share_mode;
-$error      = isset( $_GET['traveler_error'] ) ? sanitize_key( wp_unslash( $_GET['traveler_error'] ) ) : '';
-$quick_plan_draft_key = isset( $_GET['quick_plan_draft'] ) ? sanitize_key( wp_unslash( $_GET['quick_plan_draft'] ) ) : '';
+$error      = $traveler->get_query_arg_key( 'traveler_error' );
+$quick_plan_draft_key = $traveler->get_query_arg_key( 'quick_plan_draft' );
 $quick_plan_draft = '' !== $quick_plan_draft_key ? $traveler->get_quick_plan_draft( $quick_plan_draft_key ) : [];
 $quick_plan_draft_target = isset( $quick_plan_draft['target_trip_id'] ) ? absint( $quick_plan_draft['target_trip_id'] ) : 0;
 $quick_plan_segment = $quick_plan_draft_target === $trip_id && isset( $quick_plan_draft['segment'] ) && is_array( $quick_plan_draft['segment'] )

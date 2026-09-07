@@ -3,14 +3,13 @@
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Template variables are render-local state.
 use Traveler\App;
 use Traveler\GeocodeCache;
 use Traveler\Trip;
 
-global $wp_app_route;
-
 $traveler = App::get_instance();
-$trip_id    = isset( $wp_app_route['params']['id'] ) ? absint( $wp_app_route['params']['id'] ) : absint( get_query_var( 'id' ) );
+$trip_id    = absint( $traveler->get_route_param( 'id' ) );
 $trip       = Trip::get( $trip_id );
 if ( ! $trip || ! current_user_can( 'read_traveler_trip', $trip_id ) ) {
     wp_die(

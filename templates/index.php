@@ -3,6 +3,7 @@
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Template variables are render-local state.
 use Traveler\App;
 use Traveler\LodgingCoverage;
 use Traveler\Parser\AiParser;
@@ -12,12 +13,12 @@ $traveler = App::get_instance();
 $trips      = array_map( static function( Trip $trip ): array {
     return $trip->to_array();
 }, Trip::for_current_user() );
-$imported   = isset( $_GET['imported'] ) ? absint( $_GET['imported'] ) : 0;
-$deleted    = isset( $_GET['deleted'] ) ? absint( $_GET['deleted'] ) : 0;
-$error      = isset( $_GET['traveler_error'] ) ? sanitize_key( wp_unslash( $_GET['traveler_error'] ) ) : '';
-$shared_draft_key = isset( $_GET['shared_draft'] ) ? sanitize_key( wp_unslash( $_GET['shared_draft'] ) ) : '';
+$imported   = $traveler->get_query_arg_absint( 'imported' );
+$deleted    = $traveler->get_query_arg_absint( 'deleted' );
+$error      = $traveler->get_query_arg_key( 'traveler_error' );
+$shared_draft_key = $traveler->get_query_arg_key( 'shared_draft' );
 $shared_text = '' !== $shared_draft_key ? $traveler->take_share_target_text( $shared_draft_key ) : '';
-$quick_plan_draft_key = isset( $_GET['quick_plan_draft'] ) ? sanitize_key( wp_unslash( $_GET['quick_plan_draft'] ) ) : '';
+$quick_plan_draft_key = $traveler->get_query_arg_key( 'quick_plan_draft' );
 $quick_plan_draft = '' !== $quick_plan_draft_key ? $traveler->get_quick_plan_draft( $quick_plan_draft_key ) : [];
 $quick_plan_segment = isset( $quick_plan_draft['segment'] ) && is_array( $quick_plan_draft['segment'] ) ? $quick_plan_draft['segment'] : [];
 $quick_plan_matches = isset( $quick_plan_draft['matches'] ) && is_array( $quick_plan_draft['matches'] ) ? $quick_plan_draft['matches'] : [];
@@ -432,7 +433,7 @@ $get_timeline_preview = static function( array $trip_data ) use ( $today ): arra
             <div class="notice" role="status"><?php esc_html_e( 'Travel plan imported.', 'traveler' ); ?></div>
         <?php elseif ( $deleted ) : ?>
             <div class="notice" role="status"><?php esc_html_e( 'Travel plan deleted.', 'traveler' ); ?></div>
-        <?php elseif ( isset( $_GET['settings_updated'] ) ) : ?>
+        <?php elseif ( $traveler->has_query_arg( 'settings_updated' ) ) : ?>
             <div class="notice" role="status"><?php esc_html_e( 'Settings saved.', 'traveler' ); ?></div>
         <?php elseif ( $error ) : ?>
             <div class="notice error" role="alert"><?php echo esc_html( $traveler->get_error_notice_message( $error, __( 'The itinerary could not be imported.', 'traveler' ) ) ); ?></div>
