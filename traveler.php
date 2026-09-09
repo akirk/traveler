@@ -5,7 +5,6 @@
  * Description: Turn booking confirmations into day-by-day travel itineraries you can follow, map, share and journal, all kept privately on your own site.
  * Version: 1.0.0
  * Requires at least: 6.0
- * Tested up to: 7.1
  * Requires PHP: 7.4
  * Author: Alex Kirk
  * Author URI: https://alex.kirk.at/

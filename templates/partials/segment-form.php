@@ -104,7 +104,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         <button type="submit"><?php esc_html_e( 'Save Item', 'traveler' ); ?></button>
     </div>
 </form>
-<form id="<?php echo esc_attr( 'delete-segment-form-' . (string) $index ); ?>" class="delete-segment-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this itinerary item?', 'traveler' ) ); ?>');">
+<form id="<?php echo esc_attr( 'delete-segment-form-' . (string) $index ); ?>" class="delete-segment-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-confirm="<?php esc_attr_e( 'Delete this itinerary item?', 'traveler' ); ?>">
     <input type="hidden" name="action" value="traveler_delete_segment">
     <input type="hidden" name="trip_id" value="<?php echo esc_attr( (string) $trip_data['id'] ); ?>">
     <input type="hidden" name="segment_index" value="<?php echo esc_attr( (string) $index ); ?>">
