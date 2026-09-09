@@ -42,8 +42,8 @@ class App extends BaseApp {
             'app_name'   => 'Traveler',
             // 'launcher'   => true,
             'app_icon'            => 'dashicons-location-alt',
-            'app_icon_background' => 'linear-gradient(135deg, #ee0979, #ff6a00)',
-            'app_icon_color'      => '#fff',
+            'app_icon_background' => 'linear-gradient(135deg, #38bdf8, #0369a1)',
+            'app_icon_color'      => '#ffffff',
             'app_icon_shadow'     => true,
             // Owned content: REST reads are gated with the app's capability and
             // OpenStation keeps these menus out of its dock.
@@ -250,6 +250,23 @@ class App extends BaseApp {
         $file = dirname( __DIR__ ) . '/assets/' . ltrim( $path, '/' );
 
         return file_exists( $file ) ? (string) filemtime( $file ) : '1.0.0';
+    }
+
+    public function print_static_trip_styles(): void {
+        $css = $this->get_asset_contents( 'css/trip.css' );
+        if ( '' === $css ) {
+            return;
+        }
+
+        echo '<style id="' . esc_attr( 'traveler-static-trip-css' ) . '">';
+        echo $css; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static download CSS is a bundled plugin asset, not user input.
+        echo '</style>';
+    }
+
+    private function get_asset_contents( string $path ): string {
+        $file = dirname( __DIR__ ) . '/assets/' . ltrim( $path, '/' );
+
+        return is_readable( $file ) ? (string) file_get_contents( $file ) : '';
     }
 
     public function enqueue_template_assets( string $template, bool $script = false, string $data_object = '', array $data = [] ): void {
@@ -3231,12 +3248,6 @@ class App extends BaseApp {
             admin_url( 'admin-post.php?action=traveler_download_trip_html&trip_id=' . $trip_id . '&share_mode=' . $mode ),
             'traveler_download_trip_html_' . $trip_id
         );
-    }
-
-    public function get_static_timeline_script(): string {
-        $script_path = dirname( __DIR__ ) . '/assets/js/timeline-time.js';
-
-        return is_readable( $script_path ) ? (string) file_get_contents( $script_path ) : '';
     }
 
     private function render_static_trip_html( int $trip_id, string $mode = 'fellow' ): string {

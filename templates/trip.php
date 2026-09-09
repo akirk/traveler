@@ -210,7 +210,7 @@ if ( ! $is_static_download ) {
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-title" content="<?php echo esc_attr( $trip_data['title'] ?: __( 'Timeline', 'traveler' ) ); ?>">
     <?php else : ?>
-        <link rel="stylesheet" href="<?php echo esc_url( $traveler->get_asset_url( 'css/trip.css' ) ); ?>?ver=<?php echo esc_attr( $traveler->get_asset_version( 'css/trip.css' ) ); ?>">
+        <?php $traveler->print_static_trip_styles(); ?>
     <?php endif; ?>
     <?php remove_action( 'wp_head', '_wp_render_title_tag', 1 ); ?>
     <?php if ( ! $is_static_download ) : ?>
