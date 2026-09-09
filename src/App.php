@@ -42,8 +42,8 @@ class App extends BaseApp {
             'app_name'   => 'Traveler',
             // 'launcher'   => true,
             'app_icon'            => 'dashicons-location-alt',
-            'app_icon_background' => 'linear-gradient(135deg, #ee0979, #ff6a00)',
-            'app_icon_color'      => '#fff',
+            'app_icon_background' => 'linear-gradient(135deg, #38bdf8, #0369a1)',
+            'app_icon_color'      => '#ffffff',
             'app_icon_shadow'     => true,
             // Owned content: REST reads are gated with the app's capability and
             // OpenStation keeps these menus out of its dock.
@@ -240,6 +240,72 @@ class App extends BaseApp {
             true,
             $scope
         );
+    }
+
+    public function get_asset_url( string $path ): string {
+        return plugins_url( 'assets/' . ltrim( $path, '/' ), dirname( __DIR__ ) . '/traveler.php' );
+    }
+
+    public function get_asset_version( string $path ): string {
+        $file = dirname( __DIR__ ) . '/assets/' . ltrim( $path, '/' );
+
+        return file_exists( $file ) ? (string) filemtime( $file ) : '1.0.0';
+    }
+
+    public function print_static_trip_styles(): void {
+        $css = $this->get_asset_contents( 'css/trip.css' );
+        if ( '' === $css ) {
+            return;
+        }
+
+        echo '<style id="' . esc_attr( 'traveler-static-trip-css' ) . '">';
+        echo $css; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static download CSS is a bundled plugin asset, not user input.
+        echo '</style>';
+    }
+
+    private function get_asset_contents( string $path ): string {
+        $file = dirname( __DIR__ ) . '/assets/' . ltrim( $path, '/' );
+
+        return is_readable( $file ) ? (string) file_get_contents( $file ) : '';
+    }
+
+    public function enqueue_template_assets( string $template, bool $script = false, string $data_object = '', array $data = [] ): void {
+        $template = sanitize_key( $template );
+        if ( '' !== $data_object && 1 !== preg_match( '/\A[A-Za-z_$][A-Za-z0-9_$]*\z/', $data_object ) ) {
+            $data_object = '';
+        }
+
+        $scope = $this->get_url_path();
+        $style_path = 'css/' . $template . '.css';
+
+        wp_app_enqueue_style(
+            'traveler-' . $template,
+            $this->get_asset_url( $style_path ),
+            [],
+            $this->get_asset_version( $style_path ),
+            $scope
+        );
+
+        if ( '' !== $data_object ) {
+            wp_app_add_inline_script(
+                'traveler-' . $template . '-data',
+                'window.' . $data_object . '=' . wp_json_encode( $data ) . ';',
+                true,
+                $scope
+            );
+        }
+
+        if ( $script ) {
+            $script_path = 'js/' . $template . '.js';
+            wp_app_enqueue_script(
+                'traveler-' . $template,
+                $this->get_asset_url( $script_path ),
+                [],
+                $this->get_asset_version( $script_path ),
+                true,
+                $scope
+            );
+        }
     }
 
     public function get_manifest_url( int $trip_id = 0, string $share_token = '' ): string {
@@ -2345,8 +2411,8 @@ class App extends BaseApp {
 
         check_ajax_referer( 'traveler_geocode', 'nonce' );
 
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- A JSON document; the keys are sanitized below and the values by GeocodeCache::sanitize_candidates().
-        $payload = isset( $_POST['locations'] ) ? json_decode( wp_unslash( $_POST['locations'] ), true ) : null;
+        $raw_payload = isset( $_POST['locations'] ) ? sanitize_textarea_field( wp_unslash( $_POST['locations'] ) ) : '';
+        $payload = $this->sanitize_geocode_payload_json( $raw_payload );
         if ( ! is_array( $payload ) ) {
             wp_send_json_error( [ 'message' => __( 'No coordinates were submitted.', 'traveler' ) ], 400 );
         }
@@ -2363,6 +2429,29 @@ class App extends BaseApp {
         }
 
         wp_send_json_success( [ 'stored' => $stored ] );
+    }
+
+    private function sanitize_geocode_payload_json( string $raw_payload ): ?array {
+        if ( '' === $raw_payload || strlen( $raw_payload ) > 200000 ) {
+            return null;
+        }
+
+        $payload = json_decode( $raw_payload, true );
+        if ( ! is_array( $payload ) ) {
+            return null;
+        }
+
+        $clean = [];
+        foreach ( $payload as $location => $candidates ) {
+            $location = sanitize_text_field( (string) $location );
+            if ( '' === $location || ! is_array( $candidates ) ) {
+                continue;
+            }
+
+            $clean[ $location ] = GeocodeCache::sanitize_candidates( $candidates );
+        }
+
+        return $clean;
     }
 
     public function handle_clear_share_cache(): void {
@@ -3159,12 +3248,6 @@ class App extends BaseApp {
             admin_url( 'admin-post.php?action=traveler_download_trip_html&trip_id=' . $trip_id . '&share_mode=' . $mode ),
             'traveler_download_trip_html_' . $trip_id
         );
-    }
-
-    public function get_static_timeline_script(): string {
-        $script_path = dirname( __DIR__ ) . '/assets/js/timeline-time.js';
-
-        return is_readable( $script_path ) ? (string) file_get_contents( $script_path ) : '';
     }
 
     private function render_static_trip_html( int $trip_id, string $mode = 'fellow' ): string {

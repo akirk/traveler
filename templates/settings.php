@@ -12,6 +12,8 @@ $delegation_capability_options = $traveler->get_delegation_capability_options();
 $delegated_trip_creation_capability = $traveler->get_delegated_trip_creation_capability( get_current_user_id() );
 $global_trip_editor_capability = $traveler->get_global_trip_editor_capability( get_current_user_id() );
 $settings_updated = $traveler->has_query_arg( 'settings_updated' );
+
+$traveler->enqueue_template_assets( 'settings' );
 ?>
 <!DOCTYPE html>
 <html <?php wp_app_language_attributes(); ?>>
@@ -21,96 +23,6 @@ $settings_updated = $traveler->has_query_arg( 'settings_updated' );
     <title><?php wp_app_the_title( __( 'Traveler Settings', 'traveler' ) ); ?></title>
     <?php remove_action( 'wp_head', '_wp_render_title_tag', 1 ); ?>
     <?php wp_app_head(); ?>
-    <style>
-        :root { color-scheme: light dark; }
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-            line-height: 1.5;
-            background: var(--wp-app-color-background);
-            color: var(--wp-app-color-text);
-        }
-        main { max-width: 760px; margin: 0 auto; padding: 32px 18px 56px; }
-        h1, h2, p { margin-top: 0; }
-        h1 { font-size: 2rem; line-height: 1.1; margin-bottom: 10px; letter-spacing: 0; }
-        .subheader {
-            color: var(--wp-app-color-muted);
-            margin-bottom: 24px;
-            max-width: 620px;
-        }
-        a { color: var(--wp-app-color-link); }
-        .notice {
-            margin-bottom: 18px;
-            padding: 12px 14px;
-            border: 1px solid rgba(15, 107, 66, 0.28);
-            border-radius: 8px;
-            background: rgba(15, 107, 66, 0.08);
-        }
-        .settings-form {
-            display: grid;
-            gap: 14px;
-        }
-        .setting-option {
-            display: flex;
-            gap: 10px;
-            align-items: flex-start;
-            margin: 0;
-            font-weight: 400;
-        }
-        .setting-option input {
-            width: auto;
-            margin-top: 4px;
-        }
-        .setting-option strong {
-            display: block;
-            color: var(--wp-app-color-text);
-        }
-        .setting-option span span {
-            color: var(--wp-app-color-muted);
-            font-size: 0.9rem;
-        }
-        .setting-field {
-            display: grid;
-            gap: 6px;
-        }
-        .setting-field label {
-            font-weight: 700;
-        }
-        .setting-field select {
-            width: 100%;
-            max-width: 360px;
-            box-sizing: border-box;
-            border: 1px solid var(--wp-app-color-border);
-            border-radius: 6px;
-            padding: 9px 10px;
-            background: var(--wp-app-color-background);
-            color: var(--wp-app-color-text);
-            font: inherit;
-        }
-        .setting-help {
-            color: var(--wp-app-color-muted);
-            font-size: 0.9rem;
-        }
-        .actions {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            align-items: center;
-        }
-        button {
-            appearance: none;
-            border: 0;
-            border-radius: 6px;
-            background: var(--wp-app-color-link);
-            color: #fff;
-            font: inherit;
-            font-weight: 700;
-            padding: 9px 12px;
-            cursor: pointer;
-            min-height: 38px;
-            white-space: nowrap;
-        }
-    </style>
 </head>
 <body <?php body_class( 'wp-app-body traveler-settings' ); ?>>
     <?php wp_app_body_open(); ?>
