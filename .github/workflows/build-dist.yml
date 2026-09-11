@@ -169,17 +169,21 @@ jobs:
             };
 
             const blueprint = pointPluginAtPr(await getJsonFile('blueprint.json'));
-            const playgroundUrl = (data) => `https://playground.wordpress.net/#${encodeURIComponent(JSON.stringify(data))}`;
+            const minimizeBlueprint = (data) => {
+              const copy = JSON.parse(JSON.stringify(data));
+              delete copy.$schema;
+              delete copy.meta;
+              return copy;
+            };
+            const playgroundUrl = (data) => {
+              const dataUrl = `data:application/json;base64,${Buffer.from(JSON.stringify(minimizeBlueprint(data))).toString('base64')}`;
+              return `https://playground.wordpress.net/?blueprint-url=${encodeURIComponent(dataUrl)}`;
+            };
             const links = [`[Try this PR](${playgroundUrl(blueprint)})`];
 
             try {
               const demo = await getJsonFile('demo.json');
-              const demoSteps = (demo.steps || []).filter((step) => step.step !== 'installPlugin');
-              if (demoSteps.length) {
-                const demoBlueprint = JSON.parse(JSON.stringify(blueprint));
-                demoBlueprint.steps.push(...demoSteps);
-                links.push(`[Try with demo data](${playgroundUrl(demoBlueprint)})`);
-              }
+              links.push(`[Try with demo data](${playgroundUrl(pointPluginAtPr(demo))})`);
             } catch (error) {
               if (error.status !== 404) {
                 throw error;
