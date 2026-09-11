@@ -174,12 +174,7 @@ jobs:
 
             try {
               const demo = await getJsonFile('demo.json');
-              const demoSteps = (demo.steps || []).filter((step) => step.step !== 'installPlugin');
-              if (demoSteps.length) {
-                const demoBlueprint = JSON.parse(JSON.stringify(blueprint));
-                demoBlueprint.steps.push(...demoSteps);
-                links.push(`[Try with demo data](${playgroundUrl(demoBlueprint)})`);
-              }
+              links.push(`[Try with demo data](${playgroundUrl(pointPluginAtPr(demo))})`);
             } catch (error) {
               if (error.status !== 404) {
                 throw error;
