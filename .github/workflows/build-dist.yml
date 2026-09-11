@@ -193,8 +193,6 @@ jobs:
               '## WordPress Playground',
               '',
               `Test this PR in WordPress Playground: ${links.join(' · ')}`,
-              '',
-              `The linked blueprint installs this PR directly from \`${headRepo}@${headSha.slice(0, 12)}\` and loads WpApp from \`akirk/wp-app\`.`,
               markerEnd,
             ].join('\n');
 
