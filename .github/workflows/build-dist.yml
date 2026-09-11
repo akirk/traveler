@@ -2,8 +2,8 @@ name: Build dist branch
 
 on:
   push:
-    branches-ignore:
-      - 'dist/**'
+    branches:
+      - main
   pull_request_target:
     types:
       - opened
