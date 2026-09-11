@@ -169,8 +169,14 @@ jobs:
             };
 
             const blueprint = pointPluginAtPr(await getJsonFile('blueprint.json'));
+            const minimizeBlueprint = (data) => {
+              const copy = JSON.parse(JSON.stringify(data));
+              delete copy.$schema;
+              delete copy.meta;
+              return copy;
+            };
             const playgroundUrl = (data) => {
-              const dataUrl = `data:application/json;base64,${Buffer.from(JSON.stringify(data)).toString('base64')}`;
+              const dataUrl = `data:application/json;base64,${Buffer.from(JSON.stringify(minimizeBlueprint(data))).toString('base64')}`;
               return `https://playground.wordpress.net/?blueprint-url=${encodeURIComponent(dataUrl)}`;
             };
             const links = [`[Try this PR](${playgroundUrl(blueprint)})`];
