@@ -133,63 +133,52 @@ jobs:
             const headRepo = process.env.HEAD_REPO;
             const headSha = process.env.HEAD_SHA;
             const [headOwner, headName] = headRepo.split('/');
-            const pluginSource = { resource: 'git:directory', url: `https://github.com/${headRepo}`, ref: headSha, refType: 'commit' };
-            const wpAppSource = { resource: 'git:directory', url: 'https://github.com/akirk/wp-app', ref: 'main', refType: 'branch', path: 'src' };
-            const autoload = `<?php
-            require_once __DIR__ . '/akirk/wp-app/functions.php';
-            spl_autoload_register( static function ( $class ) {
-                $map = [
-                    'WpApp\\\\BaseApp' => 'abstract-baseapp.php',
-                    'WpApp\\\\BaseStorage' => 'BaseStorage.php',
-                    'WpApp\\\\Masterbar' => 'class-masterbar.php',
-                    'WpApp\\\\Openstation' => 'class-openstation.php',
-                    'WpApp\\\\Pwa' => 'class-pwa.php',
-                    'WpApp\\\\Registry' => 'class-registry.php',
-                    'WpApp\\\\Router' => 'class-router.php',
-                    'WpApp\\\\Settings' => 'class-settings.php',
-                    'WpApp\\\\WpApp' => 'class-wpapp.php',
-                    'WpApp\\\\Rest\\\\Access' => 'rest/class-access.php',
-                    'WpApp\\\\Rest\\\\Private_Posts_Controller' => 'rest/class-private-posts-controller.php',
-                    'WpApp\\\\Rest\\\\Private_Terms_Controller' => 'rest/class-private-terms-controller.php',
-                ];
-                if ( isset( $map[ $class ] ) ) {
-                    require_once __DIR__ . '/akirk/wp-app/' . $map[ $class ];
-                }
-            } );
-            `;
-            const cleanup = `<?php require '/wordpress/wp-load.php'; require_once ABSPATH . 'wp-admin/includes/plugin.php'; $old = 'travel-app/travel-app.php'; if ( file_exists( WP_PLUGIN_DIR . '/' . $old ) ) { deactivate_plugins( $old ); $it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( WP_PLUGIN_DIR . '/travel-app', FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST ); foreach ( $it as $f ) { $f->isDir() ? rmdir( $f ) : unlink( $f ); } rmdir( WP_PLUGIN_DIR . '/travel-app' ); }`;
-            const blueprint = {
-              $schema: 'https://playground.wordpress.net/blueprint-schema.json',
-              landingPage: '/traveler/',
-              login: true,
-              steps: [
-                { step: 'installPlugin', pluginData: pluginSource, options: { activate: false, targetFolderName: 'traveler' } },
-                { step: 'installPlugin', pluginData: wpAppSource, options: { activate: false, targetFolderName: 'traveler/vendor/akirk/wp-app' } },
-                { step: 'mkdir', path: 'wordpress/wp-content/plugins/traveler/vendor' },
-                { step: 'writeFile', path: '/wordpress/wp-content/plugins/traveler/vendor/autoload.php', data: autoload },
-                { step: 'activatePlugin', pluginPath: 'traveler/traveler.php' },
-                { step: 'runPHP', code: cleanup },
-              ],
+            const repoUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}`;
+            const headUrl = `https://github.com/${headRepo}`;
+
+            const getJsonFile = async (path) => {
+              const response = await github.rest.repos.getContent({
+                owner: headOwner,
+                repo: headName,
+                path,
+                ref: headSha,
+              });
+
+              if (Array.isArray(response.data) || response.data.type !== 'file' || !response.data.content) {
+                throw new Error(`${path} is not a file`);
+              }
+
+              return JSON.parse(Buffer.from(response.data.content, response.data.encoding || 'base64').toString('utf8'));
             };
+
+            const pointPluginAtPr = (blueprint) => {
+              const copy = JSON.parse(JSON.stringify(blueprint));
+              for (const step of copy.steps || []) {
+                const pluginData = step.pluginData || {};
+                if (
+                  step.step === 'installPlugin' &&
+                  pluginData.resource === 'git:directory' &&
+                  pluginData.url === repoUrl
+                ) {
+                  pluginData.url = headUrl;
+                  pluginData.ref = headSha;
+                  pluginData.refType = 'commit';
+                }
+              }
+              return copy;
+            };
+
+            const blueprint = pointPluginAtPr(await getJsonFile('blueprint.json'));
             const playgroundUrl = (data) => `https://playground.wordpress.net/#${encodeURIComponent(JSON.stringify(data))}`;
             const links = [`[Try this PR](${playgroundUrl(blueprint)})`];
 
             try {
-              const demoResponse = await github.rest.repos.getContent({
-                owner: headOwner,
-                repo: headName,
-                path: 'demo.json',
-                ref: headSha,
-              });
-
-              if (!Array.isArray(demoResponse.data) && demoResponse.data.type === 'file' && demoResponse.data.content) {
-                const demo = JSON.parse(Buffer.from(demoResponse.data.content, demoResponse.data.encoding || 'base64').toString('utf8'));
-                const demoSteps = (demo.steps || []).filter((step) => step.step !== 'installPlugin');
-                if (demoSteps.length) {
-                  const demoBlueprint = JSON.parse(JSON.stringify(blueprint));
-                  demoBlueprint.steps.push(...demoSteps);
-                  links.push(`[Try with demo data](${playgroundUrl(demoBlueprint)})`);
-                }
+              const demo = await getJsonFile('demo.json');
+              const demoSteps = (demo.steps || []).filter((step) => step.step !== 'installPlugin');
+              if (demoSteps.length) {
+                const demoBlueprint = JSON.parse(JSON.stringify(blueprint));
+                demoBlueprint.steps.push(...demoSteps);
+                links.push(`[Try with demo data](${playgroundUrl(demoBlueprint)})`);
               }
             } catch (error) {
               if (error.status !== 404) {
