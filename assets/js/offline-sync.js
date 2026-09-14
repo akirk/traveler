@@ -405,12 +405,13 @@
 
     function getTripData() {
         var source = document.getElementById('traveler-trip-data');
-        if (!source || !source.textContent) {
+        var data = source && (source.content || source).textContent;
+        if (!data) {
             return null;
         }
 
         try {
-            return JSON.parse(source.textContent);
+            return JSON.parse(data);
         } catch (error) {
             return null;
         }
